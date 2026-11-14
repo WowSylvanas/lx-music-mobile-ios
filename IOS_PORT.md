@@ -4,7 +4,7 @@
 
 ## 构建与安装
 
-推送 `lx-ios-port` 分支后，GitHub Actions 的 `Build LX Music iOS port` 工作流会安装依赖、编译 Release 真机版本并上传 `LXMusic-iOS-unsigned` 产物。下载 ZIP 后解压，将 `LXMusic-iOS-unsigned.ipa` 交给 Sideloadly，用自己的 Apple 账号签名安装。免费账号通常需要每 7 天续签。
+独立仓库：[WowSylvanas/lx-music-mobile-ios](https://github.com/WowSylvanas/lx-music-mobile-ios)。推送 `main` 分支后，[GitHub Actions](https://github.com/WowSylvanas/lx-music-mobile-ios/actions/workflows/ios-port.yml) 的 `Build LX Music iOS port` 工作流会安装依赖、编译 Release 真机版本并上传 `LXMusic-iOS-unsigned` 产物；也可点击 Run workflow 手动构建。工作流继续兼容原 `lx-ios-port` 分支。下载 ZIP 后解压，将 `LXMusic-iOS-unsigned.ipa` 交给 Sideloadly，用自己的 Apple 账号签名安装。免费账号通常需要每 7 天续签。
 
 要求 iOS 15 或更高版本。Windows 安装步骤：
 
@@ -30,6 +30,7 @@
 - 读取本地音频基本标签及封面，支持外置 LRC 歌词。
 - 停用 Android APK 自更新入口，使用独立包标识 `com.wowsylvanas.lxmusic.ios`。
 - 为主菜单、我的列表、排行榜与歌单分类提供 iOS 抽屉组件，支持左右布局、点击遮罩或向侧边滑动关闭。
+- 区分 iOS 主动停止/清空队列与自然播放结束，防止将停止操作误当成播完而连续跳歌；倒序删除旧队列索引，并直接从原生队列读取当前歌曲。
 
 ## 平台限制
 

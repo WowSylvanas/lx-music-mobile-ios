@@ -1,8 +1,10 @@
 <p align="center"><a href="https://github.com/lyswhut/lx-music-mobile"><img width="200" src="https://github.com/lyswhut/lx-music-mobile/blob/master/doc/images/icon.png" alt="lx-music logo"></a></p>
 
-<h1 align="center">LX Music 移动版</h1>
+<h1 align="center">LX Music iOS（实验移植）</h1>
 
 > **此分支为非官方 iOS 实验移植。** iOS 构建、安装方法、验证范围和平台限制见 [IOS_PORT.md](IOS_PORT.md)。以下保留上游项目说明；上游官方仍只支持 Android。
+
+[iOS 构建与 IPA 下载](https://github.com/WowSylvanas/lx-music-mobile-ios/actions/workflows/ios-port.yml) · [上游项目](https://github.com/lyswhut/lx-music-mobile)
 
 <p align="center">
   <a href="https://github.com/lyswhut/lx-music-mobile/releases"><img src="https://img.shields.io/github/release/lyswhut/lx-music-mobile" alt="Release version"></a>

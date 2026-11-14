@@ -2,7 +2,7 @@ name: Build LX Music iOS port
 
 on:
   push:
-    branches: [lx-ios-port]
+    branches: [main, lx-ios-port]
   workflow_dispatch:
 
 permissions:

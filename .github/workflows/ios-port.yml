@@ -133,6 +133,8 @@ jobs:
             build/*.log
             build/*.png
             build/lx-ios-smoke.json
+            build/crashes/*
+            build/simulator-app.zip
             ios/Podfile.lock
           if-no-files-found: ignore
           retention-days: 3

@@ -46,7 +46,7 @@
 
 工作流包含原生加密互操作测试、Release 真机编译、IPA 的 arm64/资源检查，以及 iPhone 模拟器中的启动和基础功能检查。模拟器检查覆盖 AES/RSA 桥接、沙盒文件/gzip、自定义源初始化/定时器/请求响应、本地 WAV 元数据/外置歌词和播放/暂停/定位，报告在模拟器诊断产物的 `lx-ios-smoke.json` 中。
 
-2026-11-16，提交 `76e3d7bad8459d88e15114eaf07c5fe73d982973` 的[新仓库构建与运行检查](https://github.com/WowSylvanas/lx-music-mobile-ios/actions/runs/43783094954)全部通过。运行环境为 iOS 18.2、iPhone 16 模拟器；验证主菜单在左右两侧打开与关闭、设置页切换、我的列表抽屉，以及通过应用实际播放队列连续四次停止/播放生成的本地 WAV。验证无错误结束事件，暂停和定位正常，自然结束仅触发一次结束事件，期间没有未处理的致命 JavaScript 异常或崩溃报告。真机 IPA 为 8,276,046 字节，SHA-256：`edf4e18381fd1ce9501a04f5bb6c374a3e4a448f130a75f8dfa8a4476e0a903c`。
+2026-11-16，提交 `5f97fd274873ad4637c3ccaf197d1e88aa3c2059` 的[真机编译与 IPA 打包](https://github.com/WowSylvanas/lx-music-mobile-ios/actions/runs/43789784493)成功。修正测试服务对防缓存查询参数的处理后，复用同一模拟器二进制的 [HTTP 运行回归](https://github.com/WowSylvanas/lx-music-mobile-ios/actions/runs/43793353506)全部通过。环境为 iOS 18.2、iPhone 16 模拟器：旧 ATS 配置的对照请求被阻止；新配置通过 HTTP 搜索、JavaScriptCore 自定义源取址与请求头验证、HTTP 音频连续四次切歌、暂停/定位和仅一次自然结束，同时通过菜单、加密、沙盒文件及本地元数据检查，无致命 JavaScript 异常或崩溃报告。真机 IPA 为 8,276,544 字节，SHA-256：`2cf6993da5c9996c4e4d8580c6179cfbaaec06a9c27f4465fd8dfa516301e411`。
 
 菜单回归使用专用模拟器启动标志，跳过首次说明弹窗；真机保留首次启动流程。
 

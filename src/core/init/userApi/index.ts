@@ -20,6 +20,7 @@ export default async(setting: LX.AppSetting) => {
   const sendScriptRequest = (requestKey: string, url: string, options: RequestParams['options']) => {
     let req = fetchData(url, options)
     req.request.then(response => {
+      if (!response.ok) log.r_warn(`[自定义源网络] HTTP ${response.statusCode} ${url.match(/^https?:\/\/[^/?#]+/)?.[0] ?? '(unknown host)'}`)
       // console.log(response)
       sendAction('response', {
         error: null,
@@ -27,6 +28,7 @@ export default async(setting: LX.AppSetting) => {
         response,
       })
     }).catch(err => {
+      log.r_warn('[自定义源网络] 请求失败', err.message)
       sendAction('response', {
         error: err.message,
         requestKey,
@@ -106,7 +108,7 @@ export default async(setting: LX.AppSetting) => {
                       // console.log(res)
                       return { type, url: res.data.url }
                     }).catch(err => {
-                      console.log(err.message)
+                      log.r_warn(`[自定义源播放] ${source}: ${err.message}`)
                       throw err
                     }),
                   }

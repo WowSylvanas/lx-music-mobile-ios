@@ -7,7 +7,12 @@ if [ -z "$runtime" ]; then
   exit 1
 fi
 device=$(xcrun simctl create 'LX Music CI' com.apple.CoreSimulator.SimDeviceType.iPhone-16 "$runtime")
-trap 'xcrun simctl shutdown "$device" >/dev/null 2>&1 || true' EXIT
+http_pid=''
+cleanup() {
+  if [ -n "$http_pid" ]; then kill "$http_pid" 2>/dev/null || true; fi
+  xcrun simctl shutdown "$device" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
 xcrun simctl boot "$device"
 xcrun simctl bootstatus "$device" -b
 xcodebuild -workspace ios/LxMusicMobile.xcworkspace -scheme LxMusicMobile \
@@ -16,6 +21,36 @@ xcodebuild -workspace ios/LxMusicMobile.xcworkspace -scheme LxMusicMobile \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' \
   build 2>&1 | tee build/simulator-build.log
 app=build/SimulatorData/Build/Products/Release-iphonesimulator/LxMusicMobile.app
+python3 scripts/check-ios-network.py "$app/Info.plist"
+# A qualified hostname is essential: localhost/IP exceptions would hide the ATS bug.
+echo '127.0.0.1 lx-ios-fixture.test' | sudo tee -a /etc/hosts
+node scripts/ios-http-fixture.cjs > build/http-fixture.log 2>&1 &
+http_pid=$!
+for attempt in $(seq 1 20); do
+  if curl --noproxy '*' --fail --silent http://lx-ios-fixture.test:18765/search >/dev/null; then break; fi
+  sleep 1
+done
+curl --noproxy '*' --fail --silent http://lx-ios-fixture.test:18765/search >/dev/null
+
+# Same binary and endpoint, old policy: prove that HTTP really was blocked.
+/usr/libexec/PlistBuddy -c 'Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true' "$app/Info.plist"
+xcrun simctl install "$device" "$app"
+SIMCTL_CHILD_LX_IOS_SMOKE=1 SIMCTL_CHILD_LX_IOS_HTTP_PROBE=1 xcrun simctl launch --console "$device" com.wowsylvanas.lxmusic.ios > build/simulator-ats-control.log 2>&1 &
+control_pid=$!
+container=$(xcrun simctl get_app_container "$device" com.wowsylvanas.lxmusic.ios data)
+probe="$container/Library/Caches/lx-ios-http-probe.json"
+for attempt in $(seq 1 30); do
+  if [ -f "$probe" ]; then break; fi
+  if ! kill -0 "$control_pid" 2>/dev/null; then break; fi
+  sleep 1
+done
+cp "$probe" build/lx-ios-http-probe.json
+python3 -c 'import json; r=json.load(open("build/lx-ios-http-probe.json")); print("Old ATS policy:",r); assert r["status"]=="blocked",r'
+xcrun simctl terminate "$device" com.wowsylvanas.lxmusic.ios
+wait "$control_pid" || true
+xcrun simctl uninstall "$device" com.wowsylvanas.lxmusic.ios
+/usr/libexec/PlistBuddy -c 'Delete :NSAppTransportSecurity:NSAllowsLocalNetworking' "$app/Info.plist"
+python3 scripts/check-ios-network.py "$app/Info.plist"
 ditto -c -k --keepParent "$app" build/simulator-app.zip
 xcrun simctl install "$device" "$app"
 SIMCTL_CHILD_LX_IOS_SMOKE=1 xcrun simctl launch --console "$device" com.wowsylvanas.lxmusic.ios > build/simulator-console.log 2>&1 &

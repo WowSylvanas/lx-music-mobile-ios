@@ -85,6 +85,7 @@ jobs:
         run: |
           set -euo pipefail
           node --test scripts/test-native-deps.cjs scripts/test-user-api-events.cjs scripts/test-ios-queue.cjs
+          python3 scripts/check-ios-network.py
           npx react-native bundle --platform ios --dev false --entry-file index.js --bundle-output build/main.jsbundle --assets-dest build/bundle-assets 2>&1 | tee build/metro.log
       - name: Build iPhone app
         if: matrix.target == 'device'
@@ -104,6 +105,7 @@ jobs:
           test -f "$app_path/user-api-preload.js"
           test -f "$app_path/icomoon.ttf"
           plutil -lint "$app_path/Info.plist"
+          python3 scripts/check-ios-network.py "$app_path/Info.plist"
           lipo "$app_path/LxMusicMobile" -verify_arch arm64
           mkdir -p build/ipa/Payload
           ditto "$app_path" build/ipa/Payload/LxMusicMobile.app
@@ -133,6 +135,7 @@ jobs:
             build/*.log
             build/*.png
             build/lx-ios-smoke.json
+            build/lx-ios-http-probe.json
             build/crashes/*
             build/simulator-app.zip
             ios/Podfile.lock

@@ -12,6 +12,9 @@ import { setNavActiveId, updateSetting } from '@/core/common'
 import settingState from '@/store/setting/state'
 import { drawerStates } from '@/utils/iosDrawerSmoke'
 import { smokeFatalErrors } from '@/utils/errorHandle'
+import { httpFetch } from '@/utils/request'
+
+const httpFixture = 'http://lx-ios-fixture.test:18765'
 
 const pause = async(ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 const assert = (condition: unknown, message: string) => { if (!condition) throw new Error(message) }
@@ -53,7 +56,7 @@ const testDrawers = async() => {
   await pause(400)
 }
 
-const testPlaybackQueue = async(audioPath: string) => {
+const testPlaybackQueue = async(audioUrl: string) => {
   await initial({ volume: 0, playRate: 1, cacheSize: 0, isHandleAudioFocus: true, isEnableAudioOffload: false })
   await TrackPlayer.setRepeatMode(RepeatMode.Off)
   let ended = 0
@@ -77,7 +80,7 @@ const testPlaybackQueue = async(audioPath: string) => {
       }
       // Use the same playlist path as an online song after its URL is resolved,
       // including the silent end sentinel and pruning the previous queue.
-      playQueuedMusic(music, 'file://' + audioPath, 0)
+      playQueuedMusic(music, audioUrl, 0)
       let ready = false
       for (let attempt = 0; attempt < 50; attempt++) {
         const [track, queue, position] = await Promise.all([getCurrentTrack(), TrackPlayer.getQueue(), TrackPlayer.getPosition()])
@@ -135,7 +138,7 @@ const testUserSource = async() => new Promise<void>((resolve, reject) => {
       }
       sendAction('request', request)
     } else if (event.action === 'response' && event.data.requestKey === 'ios-smoke') {
-      if (!event.data.status || event.data.result?.data.url !== 'https://example.invalid/ios-fixture.mp3') {
+      if (!event.data.status || event.data.result?.data.url !== httpFixture + '/audio.wav') {
         finish(new Error(event.data.errorMessage ?? 'Unexpected custom-source response'))
       } else finish()
     }
@@ -149,7 +152,18 @@ const testUserSource = async() => new Promise<void>((resolve, reject) => {
     homepage: '',
     allowShowUpdateAlert: false,
     script: `
-      lx.on(lx.EVENT_NAMES.request, () => new Promise(resolve => setTimeout(() => resolve('https://example.invalid/ios-fixture.mp3'), 10)));
+      lx.on(lx.EVENT_NAMES.request, () => new Promise((resolve, reject) => setTimeout(() => {
+        lx.request('${httpFixture}/source', { method: 'GET', headers: {
+          'User-Agent': 'lx-music/' + lx.env,
+          ver: lx.version,
+          'source-ver': lx.currentScriptInfo.version,
+          tag: lx.utils.buffer.bufToString(lx.utils.buffer.from('ios-http-fixture'), 'hex'),
+        } }, (error, response) => {
+          if (error) reject(error);
+          else if (response.statusCode !== 200 || response.body.code !== 0) reject(new Error('HTTP source fixture failed'));
+          else resolve(response.body.data);
+        });
+      }, 10)));
       lx.send(lx.EVENT_NAMES.inited, { sources: { kw: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] } } });
     `,
   })
@@ -158,6 +172,13 @@ const testUserSource = async() => new Promise<void>((resolve, reject) => {
 export const runSmokeTests = async() => {
   const checks: string[] = ['home screen initialized']
   const reportPath = RNFS.CachesDirectoryPath + '/lx-ios-smoke.json'
+  if (NativeModules.UtilsModule.smokeHTTPProbeRequested) {
+    // The runner temporarily restores the old ATS policy for a negative control.
+    let status = 'allowed'
+    try { await httpFetch(httpFixture + '/search').promise } catch { status = 'blocked' }
+    await RNFS.writeFile(RNFS.CachesDirectoryPath + '/lx-ios-http-probe.json', JSON.stringify({ status }))
+    return
+  }
   try {
     await testDrawers()
     checks.push('home menu opens and closes on both sides, Settings navigation and My lists drawer')
@@ -179,8 +200,12 @@ export const runSmokeTests = async() => {
     assert(await readFile(path + '.txt') === text, 'File gzip round-trip failed')
     checks.push('sandbox files and gzip')
 
+    const search = await httpFetch(httpFixture + '/search').promise
+    const searchBody = search.body as unknown as { songs: Array<{ source: string }> }
+    assert(search.statusCode === 200 && searchBody.songs[0].source === 'kw', 'HTTP search request failed')
+    checks.push('HTTP search through the application request layer')
     await testUserSource()
-    checks.push('JavaScriptCore source initialization, timer and request-response bridge')
+    checks.push('JavaScriptCore source initialization, timer, real HTTP request/JSON response and preserved headers')
 
     const sampleRate = 16000
     const dataSize = sampleRate * 12 * 2
@@ -197,8 +222,8 @@ export const runSmokeTests = async() => {
     await metadata.writeLyric(audioPath, '[00:00.00]Hello iPhone')
     assert(await metadata.readLyric(audioPath, true) === '[00:00.00]Hello iPhone', 'Sidecar lyric round-trip failed')
     checks.push('local WAV metadata and sidecar lyrics')
-    await testPlaybackQueue(audioPath)
-    checks.push('application playlist: four stop/play switches, aligned queue, no false ended events, pause/seek and exactly one natural completion')
+    await testPlaybackQueue(httpFixture + '/audio.wav')
+    checks.push('HTTP audio through the application playlist: four stop/play switches, aligned queue, no false ended events, pause/seek and exactly one natural completion')
     global.app_event.changeMenuVisible(true)
     await waitFor(() => drawerStates.get('home-menu')?.visible === true, 'Final menu screenshot could not open')
     await pause(300)

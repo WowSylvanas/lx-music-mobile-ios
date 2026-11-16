@@ -11,16 +11,17 @@ wave.writeUInt16LE(2, 32); wave.writeUInt16LE(16, 34); wave.write('data', 36); w
 
 const server = http.createServer((req, res) => {
   console.log(req.method, req.url)
+  const pathname = new URL(req.url, base).pathname
   const json = (status, body) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)) }
-  if (req.url === '/search') return json(200, { songs: [{ name: 'HTTP fixture', source: 'kw' }] })
-  if (req.url === '/source') {
+  if (pathname === '/search') return json(200, { songs: [{ name: 'HTTP fixture', source: 'kw' }] })
+  if (pathname === '/source') {
     if (req.headers['user-agent'] !== 'lx-music/mobile' || req.headers.ver !== '2.0.0' ||
         req.headers['source-ver'] !== '1' || req.headers.tag !== Buffer.from('ios-http-fixture').toString('hex')) {
       return json(400, { code: 1, msg: 'Script headers or buffer encoding were changed in transit' })
     }
     return json(200, { code: 0, data: base + '/audio.wav' })
   }
-  if (req.url !== '/audio.wav') return json(404, { code: 1, msg: 'Fixture not found' })
+  if (pathname !== '/audio.wav') return json(404, { code: 1, msg: 'Fixture not found' })
   const range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range || '')
   const start = range ? Number(range[1]) : 0
   const end = range && range[2] ? Math.min(Number(range[2]), wave.length - 1) : wave.length - 1

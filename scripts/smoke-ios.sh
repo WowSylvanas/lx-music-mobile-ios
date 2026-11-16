@@ -15,12 +15,16 @@ cleanup() {
 trap cleanup EXIT
 xcrun simctl boot "$device"
 xcrun simctl bootstatus "$device" -b
-xcodebuild -workspace ios/LxMusicMobile.xcworkspace -scheme LxMusicMobile \
+if [ -n "${LX_IOS_REUSE_SIMULATOR_APP:-}" ]; then
+  app="$LX_IOS_REUSE_SIMULATOR_APP"
+else
+  xcodebuild -workspace ios/LxMusicMobile.xcworkspace -scheme LxMusicMobile \
   -configuration Release -sdk iphonesimulator -destination "id=$device" \
   -derivedDataPath build/SimulatorData ARCHS="$(uname -m)" IPHONEOS_DEPLOYMENT_TARGET=15.0 \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' \
   build 2>&1 | tee build/simulator-build.log
-app=build/SimulatorData/Build/Products/Release-iphonesimulator/LxMusicMobile.app
+  app=build/SimulatorData/Build/Products/Release-iphonesimulator/LxMusicMobile.app
+fi
 python3 scripts/check-ios-network.py "$app/Info.plist"
 # A qualified hostname is essential: localhost/IP exceptions would hide the ATS bug.
 echo '127.0.0.1 lx-ios-fixture.test' | sudo tee -a /etc/hosts
